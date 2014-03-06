@@ -1,8 +1,9 @@
-# a client sdk to feed data into StatsD, written in C++
+# a client sdk for StatsD, written in C++
 
 ## API
 See [header file](src/statsd_client.h) for more api detail.
-** this client is not thread-safe **
+
+** Notice: this client is not thread-safe **
 
 ## Demo
 ### test\_client
