@@ -11,7 +11,7 @@
 #include "statsd_client.h"
 
 using namespace std;
-using namespace statsd;
+namespace statsd {
 
 inline bool fequal(float a, float b)
 {
@@ -30,40 +30,55 @@ inline bool should_send(float sample_rate)
     return sample_rate > p;
 }
 
+
+struct _StatsdClientData {
+    int sock;
+    struct sockaddr_in server;
+
+    std::string ns;
+    std::string host;
+    short       port;
+    bool        init;
+
+    char buf[255];
+    char errmsg[1024];
+};
+
 StatsdClient::StatsdClient(const string& host, int port, const string& ns)
 {
-    _ns = ns;
-    _host = host;
-    _port = port;
-    _init = false;
-    _sock = -1;
+    d = new _StatsdClientData;
+    d->ns = ns;
+    d->host = host;
+    d->port = port;
+    d->init = false;
+    d->sock = -1;
     srandom(time(NULL));
 }
 
 StatsdClient::~StatsdClient()
 {
     // close socket
-    if (_sock >= 0) {
-        close(_sock);
-        _sock = -1;
+    if (d->sock >= 0) {
+        close(d->sock);
+        d->sock = -1;
     }
 }
 
 int StatsdClient::init()
 {
-    if ( _init ) return 0;
+    if ( d->init ) return 0;
 
-    _sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if ( _sock == -1 ) {
-        snprintf(_errmsg, sizeof(_errmsg), "could not create socket, err=%m");
+    d->sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if ( d->sock == -1 ) {
+        snprintf(d->errmsg, sizeof(d->errmsg), "could not create socket, err=%m");
         return -1;
     }
 
-    memset(&_server, 0, sizeof(_server));
-    _server.sin_family = AF_INET;
-    _server.sin_port = htons(_port);
+    memset(&d->server, 0, sizeof(d->server));
+    d->server.sin_family = AF_INET;
+    d->server.sin_port = htons(d->port);
 
-    int ret = inet_aton(_host.c_str(), &_server.sin_addr);
+    int ret = inet_aton(d->host.c_str(), &d->server.sin_addr);
     if ( ret == 0 )
     {
         // host must be a domain, get it from internet
@@ -72,18 +87,18 @@ int StatsdClient::init()
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_DGRAM;
 
-        ret = getaddrinfo(_host.c_str(), NULL, &hints, &result);
+        ret = getaddrinfo(d->host.c_str(), NULL, &hints, &result);
         if ( ret ) {
-            snprintf(_errmsg, sizeof(_errmsg),
+            snprintf(d->errmsg, sizeof(d->errmsg),
                     "getaddrinfo fail, error=%d, msg=%s", ret, gai_strerror(ret) );
             return -2;
         }
         struct sockaddr_in* host_addr = (struct sockaddr_in*)result->ai_addr;
-        memcpy(&_server.sin_addr, &host_addr->sin_addr, sizeof(struct in_addr));
+        memcpy(&d->server.sin_addr, &host_addr->sin_addr, sizeof(struct in_addr));
         freeaddrinfo(result);
     }
 
-    _init = true;
+    d->init = true;
     return 0;
 }
 
@@ -133,16 +148,16 @@ int StatsdClient::send(string key, size_t value, const string &type, float sampl
 
     if ( fequal( sample_rate, 1.0 ) )
     {
-        snprintf(buf, sizeof(buf), "%s%s:%zd|%s",
-                _ns.c_str(), key.c_str(), value, type.c_str());
+        snprintf(d->buf, sizeof(d->buf), "%s%s:%zd|%s",
+                d->ns.c_str(), key.c_str(), value, type.c_str());
     }
     else
     {
-        snprintf(buf, sizeof(buf), "%s%s:%zd|%s|@%.2f",
-                _ns.c_str(), key.c_str(), value, type.c_str(), sample_rate);
+        snprintf(d->buf, sizeof(d->buf), "%s%s:%zd|%s|@%.2f",
+                d->ns.c_str(), key.c_str(), value, type.c_str(), sample_rate);
     }
 
-    return send(buf);
+    return send(d->buf);
 }
 
 int StatsdClient::send(const string &message)
@@ -152,12 +167,19 @@ int StatsdClient::send(const string &message)
     {
         return ret;
     }
-    ret = sendto(_sock, message.data(), message.size(), 0, (struct sockaddr *) &_server, sizeof(_server));
+    ret = sendto(d->sock, message.data(), message.size(), 0, (struct sockaddr *) &d->server, sizeof(d->server));
     if ( ret == -1) {
-        snprintf(_errmsg, sizeof(_errmsg),
-                "sendto server fail, host=%s:%d, err=%m", _host.c_str(), _port);
+        snprintf(d->errmsg, sizeof(d->errmsg),
+                "sendto server fail, host=%s:%d, err=%m", d->host.c_str(), d->port);
         return -1;
     }
     return 0;
+}
+
+const char* StatsdClient::errmsg()
+{
+    return d->errmsg;
+}
+
 }
 

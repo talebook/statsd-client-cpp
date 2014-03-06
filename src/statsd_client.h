@@ -9,13 +9,15 @@
 
 namespace statsd {
 
+struct _StatsdClientData;
+
 class StatsdClient {
     public:
         StatsdClient(const std::string& host, int port, const std::string& ns = "");
         ~StatsdClient();
 
     public:
-        const char* errmsg() { return _errmsg; }
+        const char* errmsg();
         int inc(const std::string& key, float sample_rate = 1.0);
         int dec(const std::string& key, float sample_rate = 1.0);
         int count(const std::string& key, size_t count, float sample_rate = 1.0);
@@ -40,16 +42,7 @@ class StatsdClient {
         void cleanup(std::string& key);
 
     protected:
-        int _sock;
-        struct sockaddr_in _server;
-
-        std::string _ns;
-        std::string _host;
-        short _port;
-        bool _init;
-
-        char buf[255];
-        char _errmsg[1024];
+        struct _StatsdClientData* d;
 };
 
 }; // end namespace
