@@ -24,7 +24,7 @@ class StatsdClient {
     public:
         int inc(const std::string& key, float sample_rate = 1.0);
         int dec(const std::string& key, float sample_rate = 1.0);
-        int count(const std::string& key, size_t count, float sample_rate = 1.0);
+        int count(const std::string& key, size_t value, float sample_rate = 1.0);
         int gauge(const std::string& key, size_t value, float sample_rate = 1.0);
         int timing(const std::string& key, size_t ms, float sample_rate = 1.0);
 
