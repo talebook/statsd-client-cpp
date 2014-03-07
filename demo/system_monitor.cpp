@@ -27,9 +27,8 @@ void sigterm(int sig)
 
 string localhost() {
     struct addrinfo hints, *info, *p;
-    string hostname;
-    hostname.resize(1024);
-    gethostname((char*)hostname.data(), 1023);
+    string hostname(1024, '\0');
+    gethostname((char*)hostname.data(), hostname.capacity());
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC; /*either IPV4 or IPV6*/
@@ -93,8 +92,8 @@ int main(int argc, char *argv[])
     unsigned int user, nice, sys, idle, total, busy, old_total=0, old_busy=0;
 
     if (argc != 3) {
-        printf("Usage: %s host port\n"
-                "Eg: %s 127.0.0.1 8125\n",
+        printf( "Usage: %s host port\n"
+                "Eg:    %s 127.0.0.1 8125\n",
                 argv[0], argv[0]);
         exit(1);
     }
@@ -114,19 +113,13 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    string ns = string("host.") + localhost() + ".";
+    string ns = string("host.") + localhost().c_str() + ".";
     statsd::StatsdClient client(argv[1], atoi(argv[2]), ns);
 
     daemon(0,0);
     printf("running in background.\n");
 
     while(running) {
-        sysinfo(&si);
-        client.gauge("system.load", 100*si.loads[0]/0x10000);
-        client.gauge("system.freemem", si.freeram/1024);
-        client.gauge("system.procs", si.procs);
-        client.count("system.uptime", si.uptime);
-
         rewind(net);
         vector<string> items;
         while(!feof(net)) {
@@ -135,13 +128,20 @@ int main(int argc, char *argv[])
 
             if ( items.size() < 17 ) continue;
             if ( items[0].find(":") == string::npos ) continue;
+            if ( items[1] == "0" and items[9] == "0" ) continue;
 
-            string netface = items[0].erase( items[0].find(":") );
-            client.count( netface+".receive.bytes", atoi(items[1].c_str()) );
-            client.count( netface+".receive.packets", atoi(items[2].c_str()) );
-            client.count( netface+".transmit.bytes", atoi(items[9].c_str()) );
-            client.count( netface+".transmit.bytes", atoi(items[10].c_str()) );
+            string netface = "network."+items[0].erase( items[0].find(":") );
+            client.count( netface+".receive.bytes", atoll(items[1].c_str()) );
+            client.count( netface+".receive.packets", atoll(items[2].c_str()) );
+            client.count( netface+".transmit.bytes", atoll(items[9].c_str()) );
+            client.count( netface+".transmit.packets", atoll(items[10].c_str()) );
         }
+
+        sysinfo(&si);
+        client.gauge("system.load", 100*si.loads[0]/0x10000);
+        client.gauge("system.freemem", si.freeram/1024);
+        client.gauge("system.procs", si.procs);
+        client.count("system.uptime", si.uptime);
 
         /* rewind doesn't do the trick for /proc/stat */
         freopen("/proc/stat", "r", stat);
