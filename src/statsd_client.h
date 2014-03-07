@@ -13,11 +13,15 @@ struct _StatsdClientData;
 
 class StatsdClient {
     public:
-        StatsdClient(const std::string& host, int port, const std::string& ns = "");
+        StatsdClient(const std::string& host="127.0.0.1", int port=8125, const std::string& ns = "");
         ~StatsdClient();
 
     public:
+        // you can config at anytime; client will use new address (useful for Singleton)
+        void config(const std::string& host, int port, const std::string& ns = "");
         const char* errmsg();
+
+    public:
         int inc(const std::string& key, float sample_rate = 1.0);
         int dec(const std::string& key, float sample_rate = 1.0);
         int count(const std::string& key, size_t count, float sample_rate = 1.0);

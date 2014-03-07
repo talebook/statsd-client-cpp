@@ -7,4 +7,5 @@ all:
 clean:
 	make -C src/ clean;
 	make -C demo/ clean;
+	@rm -f ./system_monitor ./test_client
 

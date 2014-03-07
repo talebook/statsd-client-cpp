@@ -32,26 +32,21 @@ inline bool should_send(float sample_rate)
 
 
 struct _StatsdClientData {
-    int sock;
-    struct sockaddr_in server;
+    int     sock;
+    struct  sockaddr_in server;
 
-    std::string ns;
-    std::string host;
-    short       port;
-    bool        init;
+    string  ns;
+    string  host;
+    short   port;
+    bool    init;
 
-    char buf[255];
-    char errmsg[1024];
+    char    errmsg[1024];
 };
 
 StatsdClient::StatsdClient(const string& host, int port, const string& ns)
 {
     d = new _StatsdClientData;
-    d->ns = ns;
-    d->host = host;
-    d->port = port;
-    d->init = false;
-    d->sock = -1;
+    config(host, port, ns);
     srandom(time(NULL));
 }
 
@@ -62,6 +57,18 @@ StatsdClient::~StatsdClient()
         close(d->sock);
         d->sock = -1;
     }
+}
+
+void StatsdClient::config(const string& host, int port, const string& ns)
+{
+    d->ns = ns;
+    d->host = host;
+    d->port = port;
+    d->init = false;
+    if ( d->sock >= 0 ) {
+        close(d->sock);
+    }
+    d->sock = -1;
 }
 
 int StatsdClient::init()
@@ -146,18 +153,19 @@ int StatsdClient::send(string key, size_t value, const string &type, float sampl
 
     cleanup(key);
 
+    char buf[256];
     if ( fequal( sample_rate, 1.0 ) )
     {
-        snprintf(d->buf, sizeof(d->buf), "%s%s:%zd|%s",
+        snprintf(buf, sizeof(buf), "%s%s:%zd|%s",
                 d->ns.c_str(), key.c_str(), value, type.c_str());
     }
     else
     {
-        snprintf(d->buf, sizeof(d->buf), "%s%s:%zd|%s|@%.2f",
+        snprintf(buf, sizeof(buf), "%s%s:%zd|%s|@%.2f",
                 d->ns.c_str(), key.c_str(), value, type.c_str(), sample_rate);
     }
 
-    return send(d->buf);
+    return send(buf);
 }
 
 int StatsdClient::send(const string &message)
