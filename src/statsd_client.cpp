@@ -56,6 +56,8 @@ StatsdClient::~StatsdClient()
     if (d->sock >= 0) {
         close(d->sock);
         d->sock = -1;
+        delete d;
+        d = NULL;
     }
 }
 
