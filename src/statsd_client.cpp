@@ -31,20 +31,6 @@ inline bool should_send(float sample_rate)
     return sample_rate > p;
 }
 
-void reserve_tty()
-{
-    // for some cgi environment, STDIN/STDOUT got closed;
-    // then we may got sockfd=0 which is danger for singleton;
-    for ( int fd = 0; fd < 3; ++ fd )
-    {
-        int nfd = open("/dev/null", O_RDWR);
-        if ( nfd < 0 ) continue;
-        if ( nfd == fd ) continue;
-        dup2(nfd, fd);
-        if ( nfd > 2 ) close(nfd);
-    }
-}
-
 struct _StatsdClientData {
     int     sock;
     struct  sockaddr_in server;
@@ -60,6 +46,7 @@ struct _StatsdClientData {
 StatsdClient::StatsdClient(const string& host, int port, const string& ns)
 {
     d = new _StatsdClientData;
+    d->sock = -1;
     config(host, port, ns);
     srandom(time(NULL));
 }
@@ -91,7 +78,6 @@ int StatsdClient::init()
 {
     if ( d->init ) return 0;
 
-    reserve_tty();
     d->sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if ( d->sock == -1 ) {
         snprintf(d->errmsg, sizeof(d->errmsg), "could not create socket, err=%m");
