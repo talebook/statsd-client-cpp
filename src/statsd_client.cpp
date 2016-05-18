@@ -99,6 +99,8 @@ int StatsdClient::init()
 
         ret = getaddrinfo(d->host.c_str(), NULL, &hints, &result);
         if ( ret ) {
+            close(d->sock);
+            d->sock = -1;
             snprintf(d->errmsg, sizeof(d->errmsg),
                     "getaddrinfo fail, error=%d, msg=%s", ret, gai_strerror(ret) );
             return -2;
