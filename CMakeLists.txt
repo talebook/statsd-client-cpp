@@ -8,6 +8,7 @@ include_directories(
 )
 
 add_library(statsdcppclient STATIC src/statsd_client.cpp)
+add_definitions("-fPIC")
 target_link_libraries(statsdcppclient pthread)
 
 add_executable(system_monitor demo/system_monitor.cpp)
