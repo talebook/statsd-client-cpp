@@ -7,7 +7,7 @@ int main(void)
 {
     std::cout << "running..." << std::endl;
 
-    statsd::StatsdClient client(false);
+    statsd::StatsdClient client;
     statsd::StatsdClient client2("127.0.0.1", 8125, "myproject.abx.", true);
 
     client.count("count1", 123, 1.0);
