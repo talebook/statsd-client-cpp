@@ -55,7 +55,7 @@ protected:
 
     bool batching_;
     bool exit_;
-    pthread_spinlock_t batching_spin_lock_;
+    pthread_mutex_t batching_mutex_lock_;
     std::thread batching_thread_;
     std::deque<std::string> batching_message_queue_;
     const uint64_t max_batching_size = 32768;
