@@ -52,14 +52,14 @@ StatsdClient::StatsdClient(const string& host,
     srandom(time(NULL));
 
     if (batching_) {
-        pthread_spin_init(&batching_spin_lock_, PTHREAD_PROCESS_PRIVATE);
+        pthread_mutex_init(&batching_mutex_lock_, nullptr);
         batching_thread_ = std::thread([this] {
           while (!exit_) {
               std::deque<std::string> staged_message_queue;
 
-              pthread_spin_lock(&batching_spin_lock_);
+              pthread_mutex_lock(&batching_mutex_lock_);
               batching_message_queue_.swap(staged_message_queue);
-              pthread_spin_unlock(&batching_spin_lock_);
+              pthread_mutex_unlock(&batching_mutex_lock_);
 
               while(!staged_message_queue.empty()) {
                   send_to_daemon(staged_message_queue.front());
@@ -77,7 +77,7 @@ StatsdClient::~StatsdClient()
     if (batching_) {
         exit_ = true;
         batching_thread_.join();
-        pthread_spin_destroy(&batching_spin_lock_);
+        pthread_mutex_destroy(&batching_mutex_lock_);
     }
 
 
@@ -204,14 +204,14 @@ int StatsdClient::send(string key, size_t value, const string &type, float sampl
 int StatsdClient::send(const string &message)
 {
     if (batching_) {
-        pthread_spin_lock(&batching_spin_lock_);
+        pthread_mutex_lock(&batching_mutex_lock_);
         if (batching_message_queue_.empty() ||
             batching_message_queue_.back().length() > max_batching_size) {
             batching_message_queue_.push_back(message);
         } else {
             (*batching_message_queue_.rbegin()).append("\n").append(message);
         }
-        pthread_spin_unlock(&batching_spin_lock_);
+        pthread_mutex_unlock(&batching_mutex_lock_);
 
         return 0;
     } else {
